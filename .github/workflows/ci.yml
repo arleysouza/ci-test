@@ -6,10 +6,6 @@ on:
   pull_request:
     branches: ["main"]
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -56,16 +52,13 @@ jobs:
       - name: Rodar Linter
         run: npm run lint
 
-      - name: Compilar TypeScript
+      - name: Compilar código
         run: npm run build
 
-      - name: Executar Testes (modo CI)
-        run: NODE_ENV=ci npm run test:ci
+      - name: Executar testes
+        run: NODE_ENV=ci npx jest --coverage --detectOpenHandles --forceExit
         env:
-          DB_HOST: localhost
-          DB_PORT: 5432
-          REDIS_HOST: localhost
-          REDIS_PORT: 6379
+          DOTENV_CONFIG_PATH: .env.ci.services   # força uso do arquivo correto
 
       - name: Upload coverage report
         if: success() || failure()
