@@ -60,7 +60,7 @@ jobs:
           PGPASSWORD=123 psql -h localhost -U postgres -d bdaula -f src/configs/comandos.sql
 
       - name: Executar testes
-        run: NODE_ENV=ci npx jest --coverage --detectOpenHandles --forceExit
+        run: NODE_ENV=ci.services npx jest --coverage --detectOpenHandles --forceExit
         env:
           DOTENV_CONFIG_PATH: .env.ci.services   # força uso do arquivo correto
 

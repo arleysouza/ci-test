@@ -3,7 +3,7 @@ import { Pool } from "pg";
 import Redis from "ioredis";
 
 // Carrega variáveis de ambiente baseado no NODE_ENV
-const envFile = process.env.NODE_ENV === 'ci' ? '.env.ci.services' : '.env.test';
+const envFile = process.env.NODE_ENV === 'ci' ? '.env.ci' : process.env.NODE_ENV === 'ci.services'? '.env.ci.services': '.env.test';
 console.log(`Usando arquivo de variáveis de ambiente: ${envFile}`);
 dotenv.config({ path: envFile });
 
