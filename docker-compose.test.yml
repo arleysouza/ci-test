@@ -1,0 +1,53 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: postgres-test
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123
+      POSTGRES_DB: bdaula
+    ports:
+      - "5433:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    volumes:
+      - ./src/configs/comandos.sql:/docker-entrypoint-initdb.d/comandos.sql:ro
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+
+  redis:
+    image: redis:8-alpine
+    container_name: redis-test
+    restart: always
+    tmpfs:
+      - /data
+    ports:
+      - "6380:6379"
+    networks:
+      - test-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+
+  node-test:
+    build:
+      context: .
+      dockerfile: Dockerfile.test
+    container_name: node-test
+    networks:
+      - test-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      NODE_ENV: ci
+    volumes:
+      - ./coverage:/app/coverage  # Para persistir o relatório de cobertura
+      
+networks:
+  test-network:
+    driver: bridge

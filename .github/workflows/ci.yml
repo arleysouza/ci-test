@@ -1,0 +1,51 @@
+name: CI                                      # Nome do workflow (aparece na interface do GitHub Actions)
+
+on:                                           # Gatilhos que disparam o workflow
+  push:                                       # Dispara quando há push
+    branches: ["main"]                        # ...apenas para a branch 'main'
+  pull_request:                               # Dispara quando um pull request é aberto/atualizado
+    branches: ["main"]                        # ...apenas para PRs que tenham alvo na branch 'main'
+
+jobs:                                         # Declara os jobs deste workflow
+  build-and-test:                             # Nome do job (identificador)
+    runs-on: ubuntu-latest                    # Executor virtual onde o job roda (VM Ubuntu hospedada pelo GitHub)
+
+    steps:                                    # Lista de passos (steps) do job
+      - name: Checkout do código              # Passo: checkout do repositório
+        uses: actions/checkout@v4             # Usa a action oficial para clonar o repositório no runner
+
+      - name: Build containers                # Passo: construir imagens Docker descritas no docker-compose.test.yml
+        run: docker compose -f docker-compose.test.yml build
+                                              # Executa o comando que cria/atualiza as imagens necessárias
+
+      # Subir containers (node-test vai executar os testes automaticamente)
+      - name: Subir containers e executar testes
+        run: docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from node-test
+                                              # Sobe os serviços em foreground; termina quando node-test encerrar.
+                                              # --abort-on-container-exit: derruba os demais serviços se um sair
+                                              # --exit-code-from node-test: o código de saída do comando será o do container node-test
+
+      - name: Upload coverage report          # Passo: fazer o upload do relatório de cobertura como artefato do workflow
+        uses: actions/upload-artifact@v4      # Usa a action oficial para enviar artefatos
+        with:
+          name: coverage-report               # Nome do artefato que aparecerá no GitHub
+          path: coverage                      # Caminho no runner para o diretório/arquivo a ser enviado
+                                              # Observação: o diretório coverage deve existir no filesystem do runner;
+                                              # no seu caso, é populado pelo volume definido no docker-compose.test.yml
+
+      # Rodar no mesmo ambiente do container (sem instalar nada no host)
+      - name: Rodar o Linter
+        run: docker compose -f docker-compose.test.yml run --rm node-test npm run lint
+                                              # Executa 'npm run lint' dentro de um container efêmero baseado em node-test
+                                              # --rm remove o container após a execução
+
+      # Rodar tudo em Docker
+      - name: Compilar o código TypeScript
+        run: docker compose -f docker-compose.test.yml run --rm node-test npm run build
+                                              # Executa 'npm run build' dentro do container node-test (compila TypeScript)
+
+      # Derrubar containers ao final
+      - name: Derrubar containers
+        if: always()                         # Garante que este passo rode mesmo se passos anteriores falharem
+        run: docker compose -f docker-compose.test.yml down
+                                              # Encerra e remove containers/rede criados pelo docker compose
