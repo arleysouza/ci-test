@@ -61,6 +61,11 @@ jobs:
 
       - name: Executar Testes (modo CI)
         run: NODE_ENV=ci npm run test:ci
+        env:
+          DB_HOST: localhost
+          DB_PORT: 5432
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
 
       - name: Upload coverage report
         if: success() || failure()
