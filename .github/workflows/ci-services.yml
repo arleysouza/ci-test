@@ -65,8 +65,8 @@ jobs:
 
       - name: Executar testes
         run: NODE_ENV=ci.services npx jest --coverage --detectOpenHandles --forceExit
-        env:
-          DOTENV_CONFIG_PATH: .env.ci.services   # força uso do arquivo correto
+        #env:
+        #  DOTENV_CONFIG_PATH: .env.ci.services   # força uso do arquivo correto
 
       - name: Upload coverage report
         if: success() || failure()

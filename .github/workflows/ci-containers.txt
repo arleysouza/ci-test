@@ -28,7 +28,7 @@ jobs:                                         # Declara os jobs deste workflow
 
       # Subir containers (node-test vai executar os testes automaticamente)
       - name: Subir containers e executar testes
-        run: docker compose -f docker-compose.test.yml up -d --abort-on-container-exit --exit-code-from node-test
+        run: docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from node-test
                                               # Sobe os serviços em foreground; termina quando node-test encerrar.
                                               # --abort-on-container-exit: derruba os demais serviços se um sair
                                               # --exit-code-from node-test: o código de saída do comando será o do container node-test
