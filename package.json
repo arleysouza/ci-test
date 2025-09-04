@@ -12,7 +12,7 @@
     "test": "npm run test:up && cross-env NODE_ENV=test jest --coverage --detectOpenHandles --forceExit && npm run test:stop",
     "test:up": "docker compose -f docker-compose.test.yml up -d postgres redis",
     "test:stop": "docker compose -f docker-compose.test.yml stop",
-    "test:ci": "cross-env NODE_ENV=ci jest --coverage --detectOpenHandles --forceExit"
+    "test:ci": "cross-env NODE_ENV=ci.containers jest --coverage --detectOpenHandles --forceExit"
   },
   "keywords": [],
   "author": "",
