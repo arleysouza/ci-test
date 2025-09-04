@@ -43,8 +43,8 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-    environment:
-      NODE_ENV: ci
+    #environment:
+    #  NODE_ENV: ci.services
     volumes:
       - ./coverage:/app/coverage  # Para persistir o relatório de cobertura
       
