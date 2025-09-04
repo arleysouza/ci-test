@@ -1,72 +1,60 @@
-name: CI (services)
+name: CI                                      # Nome do workflow (aparece na interface do GitHub Actions)
 
-on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
+on:                                           # Gatilhos que disparam o workflow
+  push:                                       # Dispara quando há push
+    branches: ["main"]                        # ...apenas para a branch 'main'
+  pull_request:                               # Dispara quando um pull request é aberto/atualizado
+    branches: ["main"]                        # ...apenas para PRs que tenham alvo na branch 'main'
 
-jobs:
-  build-and-test:
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}  # Garante apenas 1 execução por branch/workflow
+  cancel-in-progress: true                         # Cancela runs antigos se um novo push for feito
 
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: 123
-          POSTGRES_DB: bdaula
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd="pg_isready -U postgres"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
 
-      redis:
-        image: redis:8-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd="redis-cli ping"
-          --health-interval=10s
-          --health-timeout=5s
-          --health-retries=5
+jobs:                                         # Declara os jobs deste workflow
+  build-and-test:                             # Nome do job (identificador)
+    runs-on: ubuntu-latest                    # Executor virtual onde o job roda (VM Ubuntu hospedada pelo GitHub)
+    timeout-minutes: 10                       # Tempo máximo do job (evita jobs travados)
+    
+    steps:                                    # Lista de passos (steps) do job
+      - name: Checkout do código              # Passo: checkout do repositório
+        uses: actions/checkout@v4             # Usa a action oficial para clonar o repositório no runner
 
-    steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
+      - name: Set up Docker Buildx            # Setup Docker (garante que Docker e Compose estejam configurados no runner)
+        uses: docker/setup-buildx-action@v3
 
-      - name: Configurar Node.js
-        uses: actions/setup-node@v4
+      - name: Build containers                # Passo: construir imagens Docker descritas no docker-compose.test.yml
+        run: docker compose -f docker-compose.test.yml build
+                                              # Executa o comando que cria/atualiza as imagens necessárias
+
+      # Subir containers (node-test vai executar os testes automaticamente)
+      - name: Subir containers e executar testes
+        run: docker compose -f docker-compose.test.yml up --abort-on-container-exit --exit-code-from node-test
+                                              # Sobe os serviços em foreground; termina quando node-test encerrar.
+                                              # --abort-on-container-exit: derruba os demais serviços se um sair
+                                              # --exit-code-from node-test: o código de saída do comando será o do container node-test
+
+      - name: Upload coverage report          # Passo: fazer o upload do relatório de cobertura como artefato do workflow
+        if: success() || failure()            # Executa mesmo que os testes falhem
+        uses: actions/upload-artifact@v4      # Usa a action oficial para enviar artefatos
         with:
-          node-version: 22
-          cache: npm
+          name: coverage-report               # Nome do artefato que aparecerá no GitHub
+          path: coverage                      # Caminho no runner para o diretório/arquivo a ser enviado
+                                              # Observação: o diretório coverage deve existir no filesystem do runner;
+                                              # no seu caso, é populado pelo volume definido no docker-compose.test.yml
 
-      - name: Instalar dependências
-        run: npm ci
+      - name: Rodar o Linter                  # Rodar no mesmo ambiente do container (sem instalar nada no host)
+        run: docker compose -f docker-compose.test.yml run --rm node-test npm run lint
+                                              # Executa 'npm run lint' dentro de um container efêmero baseado em node-test
+                                              # --rm remove o container após a execução
 
-      - name: Rodar Linter
-        run: npm run lint
+      # Rodar tudo em Docker
+      - name: Compilar o código TypeScript
+        run: docker compose -f docker-compose.test.yml run --rm node-test npm run build
+                                              # Executa 'npm run build' dentro do container node-test (compila TypeScript)
 
-      - name: Compilar código
-        run: npm run build
-      
-      - name: Criar schema no Postgres
-        run: |
-          PGPASSWORD=123 psql -h localhost -U postgres -d bdaula -f src/configs/comandos.sql
-
-      - name: Executar testes
-        run: NODE_ENV=ci.services npx jest --coverage --detectOpenHandles --forceExit
-        env:
-          DOTENV_CONFIG_PATH: .env.ci.services   # força uso do arquivo correto
-
-      - name: Upload coverage report
-        if: success() || failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-report
-          path: coverage
+      # Derrubar containers ao final
+      - name: Derrubar containers
+        if: always()                         # Garante que este passo rode mesmo se passos anteriores falharem
+        run: docker compose -f docker-compose.test.yml down
+                                              # Encerra e remove containers/rede criados pelo docker compose
