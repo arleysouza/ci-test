@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: ["main"]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}  # Garante apenas 1 execução por branch/workflow
+  cancel-in-progress: true                         # Cancela runs antigos se um novo push for feito
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
@@ -25,6 +29,8 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+          --tmpfs /var/lib/postgresql/data
+          --mount type=bind,source=${{ github.workspace }}/src/configs/comandos.sql,target=/docker-entrypoint-initdb.d/comandos.sql,readonly
 
       redis:
         image: redis:8-alpine
@@ -55,9 +61,9 @@ jobs:
       - name: Compilar código
         run: npm run build
       
-      - name: Criar schema no Postgres
-        run: |
-          PGPASSWORD=123 psql -h localhost -U postgres -d bdaula -f src/configs/comandos.sql
+      #- name: Criar schema no Postgres
+      #  run: |
+      #    PGPASSWORD=123 psql -h localhost -U postgres -d bdaula -f src/configs/comandos.sql
 
       - name: Executar testes
         run: NODE_ENV=ci.services npx jest --coverage --detectOpenHandles --forceExit

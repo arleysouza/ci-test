@@ -1,4 +1,4 @@
-name: CI                                      # Nome do workflow (aparece na interface do GitHub Actions)
+name: CI (Docker)                             # Nome do workflow (aparece na interface do GitHub Actions)
 
 on:                                           # Gatilhos que disparam o workflow
   push:                                       # Dispara quando há push
@@ -9,7 +9,6 @@ on:                                           # Gatilhos que disparam o workflow
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}  # Garante apenas 1 execução por branch/workflow
   cancel-in-progress: true                         # Cancela runs antigos se um novo push for feito
-
 
 jobs:                                         # Declara os jobs deste workflow
   build-and-test:                             # Nome do job (identificador)
